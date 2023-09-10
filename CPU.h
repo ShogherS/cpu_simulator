@@ -14,69 +14,72 @@
 class CPU
 {
 	public:
-	//excecutes the current program counters instructions and incrementes the "PC" register
-	void decode();
-//	void excecute();
-	//The current state of memory and registers
-	void print();
-	//Loades the code from the file to the memory
-	void fetch(const std::string&);
+	void decode();					//excecutes the current program counters instructions
+	void excecute();
+	void print();					//The current state of memory and registers
+	void fetch(const std::string&);			//Loades the code from the file to the memory
 	private:
-	// registers
-	Registers registers;
-	//memory
-	std::vector<std::vector<std::string>> data;
-	//instructions set
-	Instructions instructions;
-	//helper functions
-	bool isRegister(const std::string&);
+	Registers registers;				// registers
+	std::vector<std::vector<std::string>> data;		
+	Instructions instructions;			//instructions set
+	std::map<std::string, int> lables;		//lables for jump
+	bool isRegister(const std::string&);		//helper functions
 	int toInt(const std::string&);
 	bool isLiteral(const std::string&);
 	int isMemory(const std::string&);
-	//bool isLable(const std::string&);
+	void scanLables();
 };
-
-void CPU::decode() {
-	//executing the current line of instruction
-	std::vector<std::string> current{data[registers.registers["PC"]]};
-	//the first value of the instruction is the insdtruction
-	//finding the appropriate instruction
-	//first looking in the ALU
-	auto it = instructions.ALU.find(current[0]);
-	if ( it == instructions.ALU.end()) {
-		//not final
-		throw std::runtime_error("The appropriate operation does not exists!");
+	
+void CPU::decode() {					//executing the current line of instruction
+	int& pc = registers.registers["PC"];
+	if (pc >= data.size()) {
+		throw std::runtime_error("Out of bounds!");
 	}
-	auto aluFunction = it->second;
-	if (isRegister(current[1])) {
-		if (isRegister(current[2])) {
-			aluFunction(registers.registers[current[1]], registers.registers[current[2]]);
-		} else if (isLiteral(current[2])) {
-			int literal = std::stoi(current[2]);
-			aluFunction(registers.registers[current[1]], literal);
-		}
-	}
-	/*
-	if (current[0] == "MOV") {
-		if (isRegister(current[1])) {
-			if (isRegister(current[2])) {
-				registers.registers[current[1]] = registers.registers[current[2]];
-			} else if (isLiteral(current[2])) {
-				registers.registers[current[1]] =  std::stoi(current[2]);		
+	if (instructions.ALU.count(data[pc][0])) {	//ALU 
+		if (isRegister(data[pc][1])) {
+			if (isRegister(data[pc][2])) {
+				instructions.ALU[data[pc][0]](registers.registers[data[pc][1]], registers.registers[data[pc][2]]);
+			} else if (isLiteral(data[pc][2])) {
+				int literal = toInt(data[pc][2]);
+				instructions.ALU[data[pc][0]](registers.registers[data[pc][1]], literal);
 			}
 		}
-	} else if (current[0] == "ADD") {
-		if (isRegister(current[1])) {
-			if (isLiteral(current[2])) {
-				registers.registers[current[1]] += std::stoi(current[2]);
-			} else if (isRegister(current[2])) {
-				registers.registers[current[1]] += registers.registers[current[2]];
-			}
+	} else if (instructions.JMP.count(data[pc][0])){	//Jump
+		int lable = lables[data[pc][1]];
+		instructions.JMP[data[pc][0]](lable, pc, registers.registers["FLG"]);
+	} else if (data[pc][0] == "CMP"){			//comperison
+		if (isRegister(data[pc][1])) {
+			if(isRegister(data[pc][2])) {
+				instructions.CMP(registers.registers[data[pc][1]], registers.registers[data[pc][2]], registers.registers["FLG"]);
+			} else if (isLiteral(data[pc][2])) {
+				int literal = toInt(data[pc][2]);
+				instructions.CMP(registers.registers[data[pc][1]], literal, registers.registers["FLG"]);
+			} else {
+				throw std::runtime_error("Syntax error!");
+			}	
+		} else if (isLiteral(data[pc][1])) {
+			if (isLiteral(data[pc][2])) {
+				int literal1 = toInt(data[pc][1]);
+				int literal2 = toInt(data[pc][1]);
+				instructions.CMP(literal1, literal2, registers.registers["FLG"]);
+			} else if (isRegister(data[pc][2])) {
+				int literal = toInt(data[pc][1]);
+				instructions.CMP(literal, registers.registers[data[pc][2]], registers.registers["FLG"]);
+			} else {
+				throw std::runtime_error("Syntax error!");
+			}	
 		}
 	}
-	*/
 	registers.registers["PC"] += 1;
 }
+
+
+void CPU::excecute(){
+	do {
+		decode();
+	} while( registers.registers["PC"] < data.size());
+}
+		
 void CPU::fetch(const std::string& filename) {
 	std::ifstream file(filename);
 	if (!file.is_open()) {
@@ -93,7 +96,9 @@ void CPU::fetch(const std::string& filename) {
 		data.push_back(tocens);
 	}
 	file.close();
+	scanLables();
 }
+
 void CPU::print() {
 	std::cout << "________RAM________" << std::endl;
 	for (int i{}; i < data.size(); ++i) {
@@ -119,6 +124,7 @@ bool CPU::isRegister(const std::string& value) {
 	}
 	return check;
 }
+
 int CPU::toInt(const std::string& value) {
 	int strInt{};
 	try {
@@ -133,9 +139,7 @@ int CPU::toInt(const std::string& value) {
 
 bool CPU::isLiteral(const std::string& value) {
 	int number{toInt(value)};
-	bool flag{false};
-//  = number == INT_MIN ? false : true;
-
+	bool flag = number == INT_MIN ? false : true;
 	return flag;
 }
 
@@ -144,10 +148,15 @@ int CPU::isMemory(const std::string& value) {
 	int lastIndex = value.size() - 1;
 	if (value[0] == '[' && value[lastIndex] == ']') {
 		std::string memory = value.substr(1, lastIndex - 1);
-		
 	}
 	return 0;
 }
 
-
+void CPU::scanLables(){
+	for(int i{}; i < data.size(); ++i) {
+		if (data[i][0] == "LBL") {
+			lables[data[i][1]] = i;
+		}
+	} 
+}
 #endif
