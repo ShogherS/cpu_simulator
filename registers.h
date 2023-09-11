@@ -3,8 +3,7 @@
 #include <map>
 #include <string>
 
-struct Registers{
-	// karoxa valuen chkaroxanam poxem heto?
+struct Registers{					//Registers class saves the registers names and the current state
 	std::map<const std::string, int> registers;
 	Registers(): registers({
 		{"EAX", 0},
@@ -16,4 +15,4 @@ struct Registers{
 	}) {};
 };
 
-#endif	
+#endif
