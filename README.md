@@ -46,6 +46,14 @@ Methods
 	void scanLabels()
 	Scans the program code for labels used in jump instructions.
 Usage
+To use this program you need to do the following simple steps
+1. Dowbload the entirw content of this repositry
+2. The code.txt contains the assembly code, which you may change at your perferance. Make sure to follow the  the invented assembly language syntax.
+3. Implement a C++ program including CPU.h file, and create an object of CPU type. Then load the assembly code frim the separate file. And finaly call the excecute() method of the CPU class.
+4. You may call the print() method during your main function to see the current state of the registers and their state.
+5. Compile the program and runn the it in your computer.
+
+ An example of usage of the program
  
 	CPU myCPU;                  //Instantiate an object of the CPU class.          
 	myCPU.fetch("program.txt"); //Load program code into memory using the fetch method. //Execute the program by calling decode and execute in sequence.
